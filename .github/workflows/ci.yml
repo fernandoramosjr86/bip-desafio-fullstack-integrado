@@ -1,16 +1,179 @@
 name: CI
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: write
 
 jobs:
-  build:
+  build-test-coverage:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: Set up JDK 17
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-      - name: Build backend
-        run: mvn -B -f backend-module clean package
+          cache: 'maven'
+
+      - name: Build and test with JaCoCo
+        run: mvn -B clean verify
+
+      - name: Generate aggregated coverage badges
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          reports = [
+              Path('backend-module/target/site/jacoco/jacoco.xml'),
+              Path('ejb-module/target/site/jacoco/jacoco.xml'),
+          ]
+
+          totals = {
+              'LINE': {'covered': 0, 'missed': 0},
+              'BRANCH': {'covered': 0, 'missed': 0},
+          }
+
+          for report in reports:
+              if not report.exists():
+                  raise SystemExit(f'Coverage report not found: {report}')
+
+              root = ET.parse(report).getroot()
+              counters = {
+                  c.attrib['type']: {
+                      'covered': int(c.attrib['covered']),
+                      'missed': int(c.attrib['missed']),
+                  }
+                  for c in root.findall('counter')
+              }
+
+              for kind in totals:
+                  values = counters.get(kind, {'covered': 0, 'missed': 0})
+                  totals[kind]['covered'] += values['covered']
+                  totals[kind]['missed'] += values['missed']
+
+
+          def percent(kind: str) -> float:
+              covered = totals[kind]['covered']
+              missed = totals[kind]['missed']
+              total = covered + missed
+              return 100.0 if total == 0 else (covered * 100.0 / total)
+
+
+          def color(value: float) -> str:
+              if value >= 90:
+                  return '#4c1'
+              if value >= 80:
+                  return '#97CA00'
+              if value >= 70:
+                  return '#a4a61d'
+              if value >= 60:
+                  return '#dfb317'
+              if value >= 50:
+                  return '#fe7d37'
+              return '#e05d44'
+
+
+          def make_badge_svg(label: str, value: float, background: str) -> str:
+              message = f'{value:.1f}%'
+              label_width = max(92, 8 * len(label) + 18)
+              message_width = max(64, 8 * len(message) + 16)
+              total_width = label_width + message_width
+
+              label_x = label_width / 2
+              message_x = label_width + (message_width / 2)
+
+              return f'''<svg xmlns="http://www.w3.org/2000/svg" width="{total_width}" height="20" role="img" aria-label="{label}: {message}">
+  <rect width="{label_width}" height="20" fill="#555"/>
+  <rect x="{label_width}" width="{message_width}" height="20" fill="{background}"/>
+  <rect width="{total_width}" height="20" fill="transparent"/>
+  <g fill="#fff" text-anchor="middle" font-family="DejaVu Sans,Verdana,Geneva,sans-serif" font-size="11">
+    <text x="{label_x}" y="14">{label}</text>
+    <text x="{message_x}" y="14">{message}</text>
+  </g>
+</svg>
+'''
+
+
+          line_pct = percent('LINE')
+          branch_pct = percent('BRANCH')
+
+          badge_dir = Path('.github/badges')
+          badge_dir.mkdir(parents=True, exist_ok=True)
+
+          (badge_dir / 'coverage-line.svg').write_text(
+              make_badge_svg('line coverage', line_pct, color(line_pct)),
+              encoding='utf-8',
+          )
+          (badge_dir / 'coverage-branch.svg').write_text(
+              make_badge_svg('branch coverage', branch_pct, color(branch_pct)),
+              encoding='utf-8',
+          )
+
+          payload = {
+              'line': {
+                  'covered': totals['LINE']['covered'],
+                  'missed': totals['LINE']['missed'],
+                  'percent': round(line_pct, 2),
+              },
+              'branch': {
+                  'covered': totals['BRANCH']['covered'],
+                  'missed': totals['BRANCH']['missed'],
+                  'percent': round(branch_pct, 2),
+              },
+          }
+          (badge_dir / 'coverage-summary.json').write_text(
+              json.dumps(payload, indent=2) + '\n',
+              encoding='utf-8',
+          )
+
+          line_total = totals['LINE']['covered'] + totals['LINE']['missed']
+          branch_total = totals['BRANCH']['covered'] + totals['BRANCH']['missed']
+
+          summary = (
+              f"Line coverage: {line_pct:.1f}% ({totals['LINE']['covered']}/{line_total})\\n"
+              f"Branch coverage: {branch_pct:.1f}% ({totals['BRANCH']['covered']}/{branch_total})"
+          )
+          print(summary)
+
+          summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_file:
+              with open(summary_file, 'a', encoding='utf-8') as handle:
+                  handle.write('## JaCoCo Coverage\\n')
+                  handle.write('\\n')
+                  handle.write('| Metric | Coverage | Covered/Total |\\n')
+                  handle.write('|---|---:|---:|\\n')
+                  handle.write(
+                      f"| Line | {line_pct:.1f}% | {totals['LINE']['covered']}/{line_total} |\\n"
+                  )
+                  handle.write(
+                      f"| Branch | {branch_pct:.1f}% | {totals['BRANCH']['covered']}/{branch_total} |\\n"
+                  )
+          PY
+
+      - name: Upload JaCoCo reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: |
+            backend-module/target/site/jacoco
+            ejb-module/target/site/jacoco
+          if-no-files-found: error
+
+      - name: Commit coverage badges
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'chore(ci): update coverage badges [skip ci]'
+          file_pattern: '.github/badges/*.svg .github/badges/*.json'
