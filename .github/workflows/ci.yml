@@ -167,14 +167,17 @@ jobs:
                   )
           PY
 
-      - name: Upload JaCoCo reports
+      - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: jacoco-reports
+          name: coverage-artifacts
           path: |
-            backend-module/target/site/jacoco
-            ejb-module/target/site/jacoco
-          if-no-files-found: error
+            .github/badges/coverage-summary.json
+            .github/badges/coverage-line.svg
+            .github/badges/coverage-branch.svg
+            backend-module/target/site/jacoco/**
+            ejb-module/target/site/jacoco/**
+          if-no-files-found: warn
 
       - name: Commit coverage badges
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
