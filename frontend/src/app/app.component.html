@@ -1,0 +1,44 @@
+<p-toast position="top-right"></p-toast>
+<p-confirmDialog></p-confirmDialog>
+
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-kicker">Poseidon-style</span>
+      <strong>BIP Console</strong>
+    </div>
+
+    <nav class="menu">
+      <a routerLink="/" routerLinkActive="active">
+        <i class="pi pi-wallet"></i>
+        <span>Benefícios</span>
+      </a>
+    </nav>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+      <div>
+        <h1>Painel Administrativo</h1>
+        <p>Operações financeiras e cadastro de benefícios.</p>
+      </div>
+
+      <button
+        pButton
+        type="button"
+        class="p-button-sm"
+        [label]="backendStatusLabel"
+        [icon]="backendStatusIcon"
+        [loading]="checkingBackend"
+        [class.p-button-success]="backendStatus === 'online'"
+        [class.p-button-danger]="backendStatus === 'offline'"
+        [class.p-button-help]="backendStatus === 'checking'"
+        (click)="refreshBackendStatus()">
+      </button>
+    </header>
+
+    <main class="content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

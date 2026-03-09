@@ -1,0 +1,220 @@
+<p-toast position="top-right"></p-toast>
+
+<section class="beneficios-page">
+  <div class="kpis">
+    <article class="kpi-card">
+      <span class="kpi-label">Registros na página</span>
+      <strong>{{ beneficios.length }}</strong>
+    </article>
+    <article class="kpi-card">
+      <span class="kpi-label">Total cadastrado</span>
+      <strong>{{ totalItems }}</strong>
+    </article>
+  </div>
+
+  <section class="table-card">
+    <header class="card-head">
+      <div>
+        <h1>Benefícios</h1>
+        <p>Listagem operacional com paginação server-side.</p>
+      </div>
+      <div class="head-actions">
+        <button pButton type="button" label="Atualizar" icon="pi pi-refresh" class="p-button-outlined" (click)="refresh()">
+        </button>
+        <button pButton type="button" label="Novo benefício" icon="pi pi-plus" (click)="openCreateDialog()"></button>
+      </div>
+    </header>
+
+    <div class="loading-wrap" *ngIf="loadingList">
+      <p-progressSpinner strokeWidth="4" styleClass="loading-spinner"></p-progressSpinner>
+    </div>
+
+    <p-table [value]="beneficios" [tableStyle]="{ 'min-width': '60rem' }" styleClass="beneficios-table">
+      <ng-template pTemplate="header">
+        <tr>
+          <th>ID</th>
+          <th>Nome</th>
+          <th>Descrição</th>
+          <th>Valor</th>
+          <th>Status</th>
+          <th class="actions-col">Ações</th>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="body" let-item>
+        <tr>
+          <td>{{ item.id }}</td>
+          <td>{{ item.nome }}</td>
+          <td>{{ item.descricao || 'Sem descrição' }}</td>
+          <td class="currency-cell">{{ item.valor | currency:'BRL':'symbol':'1.2-2' }}</td>
+          <td>
+            <p-tag [value]="item.ativo ? 'Ativo' : 'Inativo'" [severity]="statusSeverity(item.ativo)"></p-tag>
+          </td>
+          <td>
+            <div class="table-actions">
+              <button
+                pButton
+                type="button"
+                label="Editar"
+                icon="pi pi-pencil"
+                class="p-button-sm p-button-outlined"
+                (click)="openEditDialog(item)">
+              </button>
+              <button
+                pButton
+                type="button"
+                label="Transferir"
+                icon="pi pi-send"
+                class="p-button-sm p-button-secondary"
+                (click)="openTransferDialog(item)">
+              </button>
+            </div>
+          </td>
+        </tr>
+      </ng-template>
+
+      <ng-template pTemplate="emptymessage">
+        <tr>
+          <td colspan="6" class="empty-cell">Nenhum benefício encontrado.</td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    <p-paginator
+      [rows]="pageSize"
+      [totalRecords]="totalItems"
+      [first]="firstRow"
+      [rowsPerPageOptions]="pageSizes"
+      [dropdownAppendTo]="'body'"
+      (onPageChange)="onPageChange($event)">
+    </p-paginator>
+  </section>
+</section>
+
+<p-dialog
+  [(visible)]="beneficioDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '36rem', maxWidth: '95vw' }"
+  [header]="editingId ? 'Editar benefício' : 'Novo benefício'">
+  <form [formGroup]="beneficioForm" (ngSubmit)="saveBeneficio()" class="dialog-form">
+    <div class="field-group">
+      <label for="beneficio-nome">Nome</label>
+      <input id="beneficio-nome" pInputText formControlName="nome" maxlength="100">
+      <small *ngIf="fieldInvalid('beneficio', 'nome')" class="error-text">
+        Nome é obrigatório e deve ter até 100 caracteres.
+      </small>
+    </div>
+
+    <div class="field-group">
+      <label for="beneficio-descricao">Descrição</label>
+      <textarea id="beneficio-descricao" pInputTextarea rows="4" formControlName="descricao" maxlength="255"></textarea>
+      <small *ngIf="fieldInvalid('beneficio', 'descricao')" class="error-text">
+        Descrição deve ter até 255 caracteres.
+      </small>
+    </div>
+
+    <div class="field-group">
+      <label for="beneficio-valor">Valor (R$)</label>
+      <p-inputNumber
+        inputId="beneficio-valor"
+        formControlName="valor"
+        mode="decimal"
+        [min]="0.01"
+        [minFractionDigits]="2"
+        [maxFractionDigits]="2"
+        [useGrouping]="true">
+      </p-inputNumber>
+      <small *ngIf="fieldInvalid('beneficio', 'valor')" class="error-text">
+        Valor deve ser maior que zero.
+      </small>
+    </div>
+
+    <div class="toggle-row">
+      <label for="beneficio-ativo">Status</label>
+      <p-toggleButton
+        inputId="beneficio-ativo"
+        formControlName="ativo"
+        onLabel="Ativo"
+        offLabel="Inativo"
+        onIcon="pi pi-check"
+        offIcon="pi pi-times">
+      </p-toggleButton>
+    </div>
+
+    <footer class="dialog-actions">
+      <button pButton type="button" label="Cancelar" class="p-button-text" (click)="closeBeneficioDialog()"></button>
+      <button
+        pButton
+        type="submit"
+        [label]="savingBeneficio ? 'Salvando...' : (editingId ? 'Atualizar' : 'Criar')"
+        [disabled]="savingBeneficio">
+      </button>
+    </footer>
+  </form>
+</p-dialog>
+
+<p-dialog
+  [(visible)]="transferenciaDialogVisible"
+  [modal]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: '34rem', maxWidth: '95vw' }"
+  header="Transferência de benefícios">
+  <section class="transfer-source" *ngIf="transferenciaOrigem as origem">
+    <small>Origem</small>
+    <strong>#{{ origem.id }} - {{ origem.nome }}</strong>
+    <span>{{ origem.valor | currency:'BRL':'symbol':'1.2-2' }}</span>
+  </section>
+
+  <form [formGroup]="transferenciaForm" (ngSubmit)="transferir()" class="dialog-form">
+    <div class="field-group">
+      <label for="transfer-destino">ID destino</label>
+      <p-dropdown
+        inputId="transfer-destino"
+        formControlName="beneficioDestinoId"
+        [options]="transferenciaDestinos"
+        optionLabel="nome"
+        optionValue="id"
+        placeholder="Selecione o benefício de destino"
+        [showClear]="true"
+        [filter]="true"
+        filterBy="nome"
+        [loading]="loadingTransferDestinos"
+        [emptyMessage]="'Nenhum benefício disponível'">
+        <ng-template pTemplate="item" let-option>
+          <div class="transfer-option">
+            <span>{{ option.nome }}</span>
+            <small>#{{ option.id }}</small>
+          </div>
+        </ng-template>
+      </p-dropdown>
+      <small *ngIf="fieldInvalid('transferencia', 'beneficioDestinoId')" class="error-text">
+        Selecione um benefício de destino.
+      </small>
+    </div>
+
+    <div class="field-group">
+      <label for="transfer-valor">Valor (R$)</label>
+      <p-inputNumber
+        inputId="transfer-valor"
+        formControlName="valor"
+        mode="decimal"
+        [min]="0.01"
+        [minFractionDigits]="2"
+        [maxFractionDigits]="2"
+        [useGrouping]="true">
+      </p-inputNumber>
+      <small *ngIf="fieldInvalid('transferencia', 'valor')" class="error-text">
+        Valor deve ser maior que zero.
+      </small>
+    </div>
+
+    <footer class="dialog-actions">
+      <button pButton type="button" label="Cancelar" class="p-button-text" (click)="closeTransferDialog()"></button>
+      <button pButton type="submit" [label]="transferring ? 'Transferindo...' : 'Confirmar'" [disabled]="transferring">
+      </button>
+    </footer>
+  </form>
+</p-dialog>

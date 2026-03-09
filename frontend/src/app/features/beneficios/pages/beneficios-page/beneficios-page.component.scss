@@ -1,0 +1,174 @@
+.beneficios-page {
+  display: grid;
+  gap: 1rem;
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.kpi-card {
+  background: linear-gradient(145deg, #0f172a, #1d4ed8);
+  color: #eff6ff;
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  display: grid;
+  gap: 0.18rem;
+  border: 1px solid rgba(224, 242, 254, 0.22);
+}
+
+.kpi-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  opacity: 0.9;
+}
+
+.kpi-card strong {
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.table-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 16px 30px rgba(15, 23, 42, 0.1);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 1rem 0.65rem;
+}
+
+.card-head h1 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.card-head p {
+  margin: 0.35rem 0 0;
+  color: #64748b;
+}
+
+.head-actions {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 1rem;
+}
+
+.loading-spinner {
+  width: 42px;
+  height: 42px;
+}
+
+.actions-col {
+  width: 230px;
+}
+
+.currency-cell {
+  font-weight: 700;
+}
+
+.table-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.empty-cell {
+  text-align: center;
+  color: #64748b;
+  padding: 1.2rem;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.field-group {
+  display: grid;
+  gap: 0.32rem;
+}
+
+.field-group label {
+  font-weight: 600;
+  color: #334155;
+}
+
+.field-group :is(.p-inputtext, .p-inputtextarea, .p-inputnumber, .p-inputnumber-input, .p-dropdown) {
+  width: 100%;
+}
+
+.toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.error-text {
+  color: #be123c;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.transfer-source {
+  background: rgba(14, 116, 144, 0.12);
+  border: 1px solid rgba(14, 116, 144, 0.24);
+  border-radius: 12px;
+  padding: 0.72rem 0.8rem;
+  margin-bottom: 0.9rem;
+  display: grid;
+  gap: 0.16rem;
+}
+
+.transfer-source small {
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #0e7490;
+  font-weight: 700;
+}
+
+.transfer-option {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.transfer-option small {
+  color: #64748b;
+  font-weight: 600;
+}
+
+@media (max-width: 900px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+
+  .card-head {
+    flex-direction: column;
+  }
+
+  .head-actions {
+    justify-content: flex-start;
+  }
+}

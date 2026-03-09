@@ -1,0 +1,105 @@
+:host {
+  display: block;
+  min-height: 100vh;
+}
+
+.app-shell {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 260px 1fr;
+}
+
+.sidebar {
+  background: linear-gradient(180deg, #0f172a 0%, #1e3a8a 58%, #0f766e 100%);
+  color: #e2e8f0;
+  padding: 1.15rem 0.85rem;
+  border-right: 1px solid rgba(226, 232, 240, 0.18);
+}
+
+.brand {
+  display: grid;
+  gap: 0.16rem;
+  margin-bottom: 1.4rem;
+}
+
+.brand-kicker {
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.88;
+}
+
+.brand strong {
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.menu {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.menu a {
+  display: flex;
+  align-items: center;
+  gap: 0.58rem;
+  color: #e2e8f0;
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 0.62rem 0.72rem;
+  border: 1px solid transparent;
+  transition: all 120ms ease;
+}
+
+.menu a:hover {
+  background: rgba(226, 232, 240, 0.12);
+}
+
+.menu a.active {
+  background: rgba(14, 165, 233, 0.2);
+  border-color: rgba(125, 211, 252, 0.45);
+}
+
+.main-area {
+  min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.topbar {
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 1rem 1.15rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.topbar h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.topbar p {
+  margin: 0.25rem 0 0;
+  color: #64748b;
+}
+
+.content {
+  padding: 1rem;
+}
+
+@media (max-width: 960px) {
+  .app-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    border-right: 0;
+    border-bottom: 1px solid rgba(226, 232, 240, 0.2);
+    padding-bottom: 0.6rem;
+  }
+}
