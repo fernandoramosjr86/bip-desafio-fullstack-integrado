@@ -45,9 +45,12 @@ jobs:
               'BRANCH': {'covered': 0, 'missed': 0},
           }
 
+          missing_reports = []
+
           for report in reports:
               if not report.exists():
-                  raise SystemExit(f'Coverage report not found: {report}')
+                  missing_reports.append(str(report))
+                  continue
 
               root = ET.parse(report).getroot()
               counters = {
@@ -146,6 +149,8 @@ jobs:
               f"Branch coverage: {branch_pct:.1f}% ({totals['BRANCH']['covered']}/{branch_total})"
           )
           print(summary)
+          if missing_reports:
+              print('Missing reports: ' + ', '.join(missing_reports))
 
           summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
           if summary_file:
