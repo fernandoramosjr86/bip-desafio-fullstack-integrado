@@ -22,13 +22,13 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 - .github/workflows/: CI
 
 ## ✅ Tarefas do candidato
-1. Executar db/schema.sql e db/seed.sql
+1. Executar scripts de banco (`db/schema.sql` e `db/seed.sql`) ou usar carga automatica do backend
 2. Corrigir bug no BeneficioEjbService
 3. Implementar backend CRUD + integração com EJB
 4. Desenvolver frontend Angular consumindo backend
 5. Implementar testes
 6. Documentar (Swagger, README)
-7. Submeter via fork + PR
+7. Submeter via repositório público próprio (template/clone), com histórico de commits
 
 ## 🐞 Bug no EJB
 - Transferência não verifica saldo, não usa locking, pode gerar inconsistência
@@ -58,6 +58,12 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 - Rodar backend junto com dependências do reactor:
   - `mvn -pl backend-module -am spring-boot:run`
 
+## 🗄️ Fonte oficial de schema/seed em runtime
+- O backend carrega automaticamente, via `spring.sql.init`, os arquivos:
+  - `backend-module/src/main/resources/db/schema.sql`
+  - `backend-module/src/main/resources/db/seed.sql`
+- A pasta `db/` na raiz continua como referência de setup manual.
+
 ## 🔎 OpenAPI e Swagger
 - OpenAPI JSON:
   - `GET /v3/api-docs`
@@ -78,6 +84,9 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
   - integração HTTP (`BackendApiIntegrationTest`)
 - `ejb-module`:
   - unitário de regras e concorrência da transferência (`BeneficioEjbServiceTest`)
+- `frontend`:
+  - unitário da integração HTTP (`BeneficioApiService`)
+  - unitário de comportamento da página de benefícios (`BeneficiosPageComponent`)
 
 ## 💻 Frontend Angular implementado
 - Local: `frontend/`

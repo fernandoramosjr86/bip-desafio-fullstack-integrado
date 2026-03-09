@@ -1,10 +1,14 @@
 # Build outputs
 **/target/
+frontend/dist/
+frontend/coverage/
 
 # IDE and local run configs
 .idea/
 .run/
 *.iml
+frontend/.angular/
+frontend/node_modules/
 
 # OS / tooling noise
 .DS_Store
