@@ -94,5 +94,6 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 
 ## 📈 Cobertura automatizada no CI
 - JaCoCo é executado no `verify` dos módulos `backend-module` e `ejb-module`.
-- O workflow `.github/workflows/ci.yml` publica os relatórios como artifact (`jacoco-reports`).
+- O workflow `.github/workflows/ci.yml` publica os relatórios como artifact (`coverage-artifacts`).
 - Os badges em `.github/badges/` são atualizados automaticamente a cada `push` em `main/master`.
+- O quality gate de cobertura bloqueia o job quando ficar abaixo dos mínimos (`MIN_LINE_COVERAGE=80` e `MIN_BRANCH_COVERAGE=70`).

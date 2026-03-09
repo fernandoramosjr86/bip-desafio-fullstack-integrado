@@ -10,6 +10,9 @@ permissions:
 jobs:
   build-test-coverage:
     runs-on: ubuntu-latest
+    env:
+      MIN_LINE_COVERAGE: '80'
+      MIN_BRANCH_COVERAGE: '70'
 
     steps:
       - name: Checkout
@@ -71,7 +74,7 @@ jobs:
               covered = totals[kind]['covered']
               missed = totals[kind]['missed']
               total = covered + missed
-              return 100.0 if total == 0 else (covered * 100.0 / total)
+              return 0.0 if total == 0 else (covered * 100.0 / total)
 
 
           def color(value: float) -> str:
@@ -143,6 +146,8 @@ jobs:
 
           line_total = totals['LINE']['covered'] + totals['LINE']['missed']
           branch_total = totals['BRANCH']['covered'] + totals['BRANCH']['missed']
+          min_line = float(os.environ.get('MIN_LINE_COVERAGE', '0'))
+          min_branch = float(os.environ.get('MIN_BRANCH_COVERAGE', '0'))
 
           summary = (
               f"Line coverage: {line_pct:.1f}% ({totals['LINE']['covered']}/{line_total})\\n"
@@ -151,6 +156,16 @@ jobs:
           print(summary)
           if missing_reports:
               print('Missing reports: ' + ', '.join(missing_reports))
+
+          failed_thresholds = []
+          if line_pct < min_line:
+              failed_thresholds.append(
+                  f'Line coverage {line_pct:.1f}% below minimum {min_line:.1f}%'
+              )
+          if branch_pct < min_branch:
+              failed_thresholds.append(
+                  f'Branch coverage {branch_pct:.1f}% below minimum {min_branch:.1f}%'
+              )
 
           summary_file = os.environ.get('GITHUB_STEP_SUMMARY')
           if summary_file:
@@ -165,6 +180,19 @@ jobs:
                   handle.write(
                       f"| Branch | {branch_pct:.1f}% | {totals['BRANCH']['covered']}/{branch_total} |\\n"
                   )
+                  handle.write(
+                      f"| Min Line Threshold | {min_line:.1f}% | - |\\n"
+                  )
+                  handle.write(
+                      f"| Min Branch Threshold | {min_branch:.1f}% | - |\\n"
+                  )
+                  if failed_thresholds:
+                      handle.write('\\n### Coverage Gate Failed\\n')
+                      for reason in failed_thresholds:
+                          handle.write(f'- {reason}\\n')
+
+          if failed_thresholds:
+              raise SystemExit('\\n'.join(failed_thresholds))
           PY
 
       - name: Upload coverage artifacts
