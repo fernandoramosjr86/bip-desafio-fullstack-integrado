@@ -1,0 +1,11 @@
+# Build outputs
+**/target/
+
+# IDE and local run configs
+.idea/
+.run/
+*.iml
+
+# OS / tooling noise
+.DS_Store
+Thumbs.db
