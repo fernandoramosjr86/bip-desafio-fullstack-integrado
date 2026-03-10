@@ -212,4 +212,284 @@ describe('BeneficiosPageComponent', () => {
     ]);
     expect((component as any).loadingTransferDestinos).toBeFalse();
   });
+
+  it('deve manter pageSize atual quando resposta retornar size invalido', () => {
+    const response = pageResponse([], 0, 0, 0, false);
+    apiSpy.listar.and.returnValue(of(response));
+    (component as any).pageSize = 4;
+
+    (component as any).loadPage(0);
+
+    expect((component as any).pageSize).toBe(4);
+  });
+
+  it('deve atualizar pageSize no onPageChange quando rows valido', () => {
+    spyOn<any>(component, 'loadPage').and.stub();
+    (component as any).pageSize = 4;
+
+    (component as any).onPageChange({ page: 2, rows: 8 });
+
+    expect((component as any).pageSize).toBe(8);
+    expect((component as any).loadPage).toHaveBeenCalledWith(2);
+  });
+
+  it('deve preservar pageSize no onPageChange quando rows invalido', () => {
+    spyOn<any>(component, 'loadPage').and.stub();
+    (component as any).pageSize = 4;
+
+    (component as any).onPageChange({ page: 1, rows: 0 });
+
+    expect((component as any).pageSize).toBe(4);
+    expect((component as any).loadPage).toHaveBeenCalledWith(1);
+  });
+
+  it('deve abrir dialogo de edicao com descricao vazia quando beneficio nao possui descricao', () => {
+    (component as any).openEditDialog({
+      id: 5,
+      nome: 'Sem descricao',
+      descricao: null,
+      valor: 10,
+      ativo: false,
+      version: 1
+    } as Beneficio);
+
+    expect((component as any).editingId).toBe(5);
+    expect((component as any).beneficioForm.getRawValue().descricao).toBe('');
+    expect((component as any).beneficioDialogVisible).toBeTrue();
+  });
+
+  it('deve fechar dialogo de beneficio e resetar estado', () => {
+    (component as any).editingId = 9;
+    (component as any).beneficioDialogVisible = true;
+    (component as any).beneficioForm.patchValue({
+      nome: 'x',
+      descricao: 'y',
+      valor: 1,
+      ativo: false
+    });
+
+    (component as any).closeBeneficioDialog();
+
+    expect((component as any).beneficioDialogVisible).toBeFalse();
+    expect((component as any).editingId).toBeNull();
+    expect((component as any).beneficioForm.getRawValue()).toEqual({
+      nome: '',
+      descricao: '',
+      valor: null,
+      ativo: true
+    });
+  });
+
+  it('nao deve salvar beneficio quando formulario invalido', () => {
+    (component as any).openCreateDialog();
+    (component as any).beneficioForm.patchValue({
+      nome: '',
+      descricao: '',
+      valor: null,
+      ativo: true
+    });
+
+    (component as any).saveBeneficio();
+
+    expect(apiSpy.criar).not.toHaveBeenCalled();
+    expect(apiSpy.atualizar).not.toHaveBeenCalled();
+  });
+
+  it('deve atualizar beneficio existente quando editingId estiver preenchido', () => {
+    apiSpy.atualizar.and.returnValue(
+      of({
+        id: 1,
+        nome: 'Atualizado',
+        descricao: 'Descricao',
+        valor: 33,
+        ativo: false,
+        version: 2
+      })
+    );
+    spyOn<any>(component, 'loadPage').and.stub();
+    (component as any).editingId = 1;
+    (component as any).currentPage = 2;
+    (component as any).beneficioForm.setValue({
+      nome: ' Atualizado ',
+      descricao: ' Descricao ',
+      valor: 33,
+      ativo: false
+    });
+
+    (component as any).saveBeneficio();
+
+    expect(apiSpy.atualizar).toHaveBeenCalledWith(1, {
+      nome: 'Atualizado',
+      descricao: 'Descricao',
+      valor: 33,
+      ativo: false
+    });
+    expect((component as any).loadPage).toHaveBeenCalledWith(2);
+  });
+
+  it('deve notificar mensagem de erro da API ao salvar beneficio', () => {
+    apiSpy.criar.and.returnValue(
+      throwError(() => ({
+        error: {
+          message: 'Erro customizado'
+        }
+      }))
+    );
+    (component as any).openCreateDialog();
+    (component as any).beneficioForm.setValue({
+      nome: 'Novo',
+      descricao: '',
+      valor: 10,
+      ativo: true
+    });
+
+    (component as any).saveBeneficio();
+
+    const addArg = messageSpy.add.calls.mostRecent().args[0];
+    expect(addArg.severity).toBe('error');
+    expect(addArg.detail).toBe('Erro customizado');
+  });
+
+  it('deve usar mensagem padrao quando erro da API nao possui payload esperado', () => {
+    apiSpy.criar.and.returnValue(throwError(() => new Error('erro inesperado')));
+    (component as any).openCreateDialog();
+    (component as any).beneficioForm.setValue({
+      nome: 'Novo',
+      descricao: '',
+      valor: 10,
+      ativo: true
+    });
+
+    (component as any).saveBeneficio();
+
+    const addArg = messageSpy.add.calls.mostRecent().args[0];
+    expect(addArg.severity).toBe('error');
+    expect(addArg.detail).toBe('Falha ao salvar benefício.');
+  });
+
+  it('deve preparar e abrir dialogo de transferencia', () => {
+    spyOn<any>(component, 'loadTransferenciaDestinos').and.returnValue(Promise.resolve());
+    const origem: Beneficio = {
+      id: 20,
+      nome: 'Origem',
+      descricao: null,
+      valor: 300,
+      ativo: true,
+      version: 0
+    };
+
+    (component as any).openTransferDialog(origem);
+
+    expect((component as any).transferenciaOrigem).toEqual(origem);
+    expect((component as any).transferenciaDialogVisible).toBeTrue();
+    expect((component as any).transferenciaForm.getRawValue()).toEqual({
+      beneficioDestinoId: null,
+      valor: null
+    });
+    expect((component as any).loadTransferenciaDestinos).toHaveBeenCalledWith(20);
+  });
+
+  it('deve fechar dialogo de transferencia e resetar estado', () => {
+    (component as any).transferenciaDialogVisible = true;
+    (component as any).transferenciaOrigem = {
+      id: 1,
+      nome: 'x',
+      descricao: null,
+      valor: 10,
+      ativo: true,
+      version: 0
+    } as Beneficio;
+    (component as any).transferenciaDestinos = [{ id: 2, nome: 'Destino' }];
+    (component as any).transferenciaForm.patchValue({
+      beneficioDestinoId: 2,
+      valor: 5
+    });
+
+    (component as any).closeTransferDialog();
+
+    expect((component as any).transferenciaDialogVisible).toBeFalse();
+    expect((component as any).transferenciaOrigem).toBeNull();
+    expect((component as any).transferenciaDestinos).toEqual([]);
+    expect((component as any).transferenciaForm.getRawValue()).toEqual({
+      beneficioDestinoId: null,
+      valor: null
+    });
+  });
+
+  it('nao deve transferir quando formulario estiver invalido', () => {
+    (component as any).transferenciaOrigem = {
+      id: 1,
+      nome: 'Origem',
+      descricao: null,
+      valor: 20,
+      ativo: true,
+      version: 0
+    } as Beneficio;
+    (component as any).transferenciaForm.setValue({
+      beneficioDestinoId: null,
+      valor: null
+    });
+
+    (component as any).transferir();
+
+    expect(apiSpy.transferir).not.toHaveBeenCalled();
+  });
+
+  it('deve notificar erro da API ao falhar transferencia', () => {
+    apiSpy.transferir.and.returnValue(
+      throwError(() => ({
+        error: {
+          message: 'Transferencia negada'
+        }
+      }))
+    );
+    (component as any).transferenciaOrigem = {
+      id: 1,
+      nome: 'Origem',
+      descricao: null,
+      valor: 100,
+      ativo: true,
+      version: 0
+    } as Beneficio;
+    (component as any).transferenciaForm.setValue({
+      beneficioDestinoId: 2,
+      valor: 50
+    });
+
+    (component as any).transferir();
+
+    const addArg = messageSpy.add.calls.mostRecent().args[0];
+    expect(addArg.severity).toBe('error');
+    expect(addArg.detail).toBe('Transferencia negada');
+  });
+
+  it('deve notificar erro ao falhar carregamento de destinos da transferencia', async () => {
+    apiSpy.listar.and.returnValue(throwError(() => new Error('falhou')));
+
+    await (component as any).loadTransferenciaDestinos(1);
+
+    const addArg = messageSpy.add.calls.mostRecent().args[0];
+    expect(addArg.severity).toBe('error');
+    expect(addArg.detail).toBe('Falha ao carregar benefícios para destino da transferência.');
+    expect((component as any).loadingTransferDestinos).toBeFalse();
+  });
+
+  it('deve avaliar severidade de status corretamente', () => {
+    expect((component as any).statusSeverity(true)).toBe('success');
+    expect((component as any).statusSeverity(false)).toBe('danger');
+  });
+
+  it('deve avaliar fieldInvalid para os dois formularios', () => {
+    const beneficioNome = (component as any).beneficioForm.get('nome');
+    beneficioNome?.markAsTouched();
+    beneficioNome?.setValue('');
+    expect((component as any).fieldInvalid('beneficio', 'nome')).toBeTrue();
+
+    (component as any).transferenciaForm.get('beneficioDestinoId')?.markAsTouched();
+    (component as any).transferenciaForm.get('beneficioDestinoId')?.setValue(null);
+    expect((component as any).fieldInvalid('transferencia', 'beneficioDestinoId')).toBeTrue();
+
+    (component as any).transferenciaForm.get('beneficioDestinoId')?.setValue(2);
+    expect((component as any).fieldInvalid('transferencia', 'beneficioDestinoId')).toBeFalse();
+  });
 });

@@ -35,6 +35,23 @@ describe('AppComponent', () => {
     expect((component as any).checkingBackend).toBeFalse();
   });
 
+  it('deve manter chamada bloqueada quando ja estiver verificando backend', () => {
+    (component as any).checkingBackend = true;
+
+    (component as any).refreshBackendStatus();
+
+    expect(httpSpy.get).not.toHaveBeenCalled();
+  });
+
+  it('deve marcar offline quando endpoint responde status diferente de UP', () => {
+    httpSpy.get.and.returnValue(of({ status: 'DOWN' }));
+
+    (component as any).refreshBackendStatus();
+
+    expect((component as any).backendStatus).toBe('offline');
+    expect((component as any).checkingBackend).toBeFalse();
+  });
+
   it('deve emitir notificacao quando backend cai', () => {
     (component as any).previousStableBackendStatus = 'online';
 
@@ -51,6 +68,52 @@ describe('AppComponent', () => {
     expect(confirmationSpy.confirm).toHaveBeenCalled();
     const args = confirmationSpy.confirm.calls.mostRecent().args[0];
     expect(args.message).toContain('voltou');
+  });
+
+  it('deve permitir seguir sem atualizar quando usuario rejeita confirmacao', () => {
+    (component as any).previousStableBackendStatus = 'offline';
+
+    (component as any).applyBackendStatus('online');
+
+    const args = confirmationSpy.confirm.calls.mostRecent().args[0];
+    expect(typeof args.reject).toBe('function');
+    args.reject?.();
+
+    const addArg = messageSpy.add.calls.mostRecent().args[0];
+    expect(addArg.severity).toBe('info');
+    expect(addArg.summary).toBe('Sem atualização');
+  });
+
+  it('deve retornar label de verificacao quando status ainda esta em check inicial', () => {
+    (component as any).backendStatus = 'checking';
+    (component as any).checkingBackend = true;
+
+    expect((component as any).backendStatusLabel).toBe('Verificando backend...');
+  });
+
+  it('deve retornar icone de spinner durante verificacao inicial', () => {
+    (component as any).backendStatus = 'checking';
+    (component as any).checkingBackend = true;
+
+    expect((component as any).backendStatusIcon).toBe('pi pi-spin pi-spinner');
+  });
+
+  it('nao deve disparar notificacoes quando nao houver transicao relevante', () => {
+    (component as any).previousStableBackendStatus = null;
+
+    (component as any).applyBackendStatus('online');
+
+    expect(messageSpy.add).not.toHaveBeenCalled();
+    expect(confirmationSpy.confirm).not.toHaveBeenCalled();
+  });
+
+  it('deve cancelar polling no ngOnDestroy quando houver subscription ativa', () => {
+    const unsubscribe = jasmine.createSpy('unsubscribe');
+    (component as any).pollSubscription = { unsubscribe } as any;
+
+    component.ngOnDestroy();
+
+    expect(unsubscribe).toHaveBeenCalled();
   });
 
   it('deve retornar label e icone coerentes para status offline', () => {
