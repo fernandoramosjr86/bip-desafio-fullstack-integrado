@@ -1,10 +1,8 @@
 import { Routes } from '@angular/router';
-import { BeneficiosPageComponent } from './features/beneficios/pages/beneficios-page/beneficios-page.component';
-
 export const routes: Routes = [
   {
     path: '',
-    component: BeneficiosPageComponent
+    loadChildren: () => import('./features/beneficios/beneficios.routes').then((m) => m.BENEFICIOS_ROUTES)
   },
   {
     path: '**',

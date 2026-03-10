@@ -1,0 +1,14 @@
+.git
+.github
+.idea
+.run
+
+**/target
+**/node_modules
+**/.angular
+**/dist
+**/coverage
+
+frontend/.vscode
+frontend/.editorconfig
+frontend/.gitignore

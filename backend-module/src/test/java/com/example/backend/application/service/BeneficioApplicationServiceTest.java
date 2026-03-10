@@ -1,26 +1,34 @@
 package com.example.backend.application.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.example.backend.application.port.in.command.TransferirBeneficioCommand;
 import com.example.backend.application.port.in.query.ListarBeneficiosQuery;
+import com.example.backend.application.port.in.query.ListarTransferenciasQuery;
 import com.example.backend.application.port.out.BeneficioRepositoryPort;
 import com.example.backend.application.port.out.BeneficioTransferenciaPort;
+import com.example.backend.application.port.out.TransferenciaEventPublisherPort;
+import com.example.backend.application.port.out.TransferenciaHistoricoPort;
 import com.example.backend.application.shared.PageResult;
 import com.example.backend.domain.exception.BeneficioNaoEncontradoException;
 import com.example.backend.domain.exception.RegraNegocioException;
 import com.example.backend.domain.model.Beneficio;
+import com.example.backend.domain.model.TransferenciaHistorico;
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,11 +44,22 @@ class BeneficioApplicationServiceTest {
     @Mock
     private BeneficioTransferenciaPort beneficioTransferenciaPort;
 
+    @Mock
+    private TransferenciaHistoricoPort transferenciaHistoricoPort;
+
+    @Mock
+    private TransferenciaEventPublisherPort transferenciaEventPublisherPort;
+
     private BeneficioApplicationService service;
 
     @BeforeEach
     void setup() {
-        service = new BeneficioApplicationService(beneficioRepositoryPort, beneficioTransferenciaPort);
+        service = new BeneficioApplicationService(
+                beneficioRepositoryPort,
+                beneficioTransferenciaPort,
+                transferenciaHistoricoPort,
+                transferenciaEventPublisherPort
+        );
     }
 
     @Test
@@ -108,21 +127,56 @@ class BeneficioApplicationServiceTest {
     @Test
     void transferirDeveDelegarSemPreValidacaoDeExistencia() {
         TransferirBeneficioCommand command = new TransferirBeneficioCommand(1L, 2L, BigDecimal.ONE);
+        when(transferenciaHistoricoPort.save(any(TransferenciaHistorico.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, TransferenciaHistorico.class));
 
         service.transferir(command);
 
         verify(beneficioTransferenciaPort).transferir(1L, 2L, BigDecimal.ONE);
+        verify(transferenciaHistoricoPort).save(any(TransferenciaHistorico.class));
+        verify(transferenciaEventPublisherPort).publish(any(TransferenciaHistorico.class));
         verify(beneficioRepositoryPort, never()).existsById(any());
     }
 
     @Test
     void transferirValidaDeveDelegarParaPortaDeTransferencia() {
         TransferirBeneficioCommand command = new TransferirBeneficioCommand(1L, 2L, BigDecimal.ONE);
+        when(transferenciaHistoricoPort.save(any(TransferenciaHistorico.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, TransferenciaHistorico.class));
 
         service.transferir(command);
 
         verify(beneficioTransferenciaPort).transferir(1L, 2L, BigDecimal.ONE);
+        ArgumentCaptor<TransferenciaHistorico> historicoCaptor = ArgumentCaptor.forClass(TransferenciaHistorico.class);
+        verify(transferenciaHistoricoPort).save(historicoCaptor.capture());
+        TransferenciaHistorico historico = historicoCaptor.getValue();
+        assertEquals(1L, historico.beneficioOrigemId());
+        assertEquals(2L, historico.beneficioDestinoId());
+        assertEquals(BigDecimal.ONE, historico.valor());
+        verify(transferenciaEventPublisherPort).publish(any(TransferenciaHistorico.class));
         verify(beneficioRepositoryPort, never()).existsById(any());
+    }
+
+    @Test
+    void transferirComFalhaNaPublicacaoDoEventoNaoDeveFalharFluxoPrincipal() {
+        TransferirBeneficioCommand command = new TransferirBeneficioCommand(1L, 2L, new BigDecimal("2.50"));
+        when(transferenciaHistoricoPort.save(any(TransferenciaHistorico.class))).thenAnswer(invocation -> {
+            TransferenciaHistorico original = invocation.getArgument(0, TransferenciaHistorico.class);
+            return new TransferenciaHistorico(
+                    99L,
+                    original.beneficioOrigemId(),
+                    original.beneficioDestinoId(),
+                    original.valor(),
+                    original.executadoEm()
+            );
+        });
+        doThrow(new RuntimeException("broker indisponivel"))
+                .when(transferenciaEventPublisherPort).publish(any(TransferenciaHistorico.class));
+
+        assertDoesNotThrow(() -> service.transferir(command));
+        verify(beneficioTransferenciaPort).transferir(1L, 2L, new BigDecimal("2.50"));
+        verify(transferenciaHistoricoPort).save(any(TransferenciaHistorico.class));
+        verify(transferenciaEventPublisherPort).publish(any(TransferenciaHistorico.class));
     }
 
     @Test
@@ -318,5 +372,41 @@ class BeneficioApplicationServiceTest {
 
         assertEquals("Id do beneficio e obrigatorio", ex.getMessage());
         verify(beneficioRepositoryPort, never()).deleteById(any());
+    }
+
+    @Test
+    void listarTransferenciasComPaginacaoValidaDeveDelegarParaPorta() {
+        PageResult<TransferenciaHistorico> expected = new PageResult<>(
+                List.of(new TransferenciaHistorico(
+                        1L,
+                        1L,
+                        2L,
+                        new BigDecimal("10.00"),
+                        Instant.parse("2026-03-09T12:30:00Z")
+                )),
+                1,
+                0,
+                10,
+                1,
+                false,
+                false
+        );
+        when(transferenciaHistoricoPort.findAll(0, 10)).thenReturn(expected);
+
+        PageResult<TransferenciaHistorico> actual = service.listarTransferencias(new ListarTransferenciasQuery(0, 10));
+
+        assertEquals(1, actual.items().size());
+        verify(transferenciaHistoricoPort).findAll(0, 10);
+    }
+
+    @Test
+    void listarTransferenciasComQueryNulaDeveFalhar() {
+        RegraNegocioException ex = assertThrows(
+                RegraNegocioException.class,
+                () -> service.listarTransferencias(null)
+        );
+
+        assertEquals("Consulta de historico e obrigatoria", ex.getMessage());
+        verify(transferenciaHistoricoPort, never()).findAll(anyInt(), anyInt());
     }
 }

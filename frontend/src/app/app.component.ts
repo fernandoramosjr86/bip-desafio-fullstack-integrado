@@ -17,7 +17,7 @@ import { Subscription, interval } from 'rxjs';
 })
 export class AppComponent implements OnInit, OnDestroy {
   private static readonly STATUS_POLL_MS = 15000;
-  private static readonly BACKEND_HEALTH_ENDPOINT = '/api/v1/beneficios?page=0&size=1';
+  private static readonly BACKEND_HEALTH_ENDPOINT = '/actuator/health';
 
   private pollSubscription?: Subscription;
   private previousStableBackendStatus: 'online' | 'offline' | null = null;
@@ -45,9 +45,9 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     this.checkingBackend = true;
-    this.http.get<{ items?: unknown[] }>(AppComponent.BACKEND_HEALTH_ENDPOINT).subscribe({
+    this.http.get<{ status?: string }>(AppComponent.BACKEND_HEALTH_ENDPOINT).subscribe({
       next: (response) => {
-        const nextStatus: 'online' | 'offline' = Array.isArray(response?.items) ? 'online' : 'offline';
+        const nextStatus: 'online' | 'offline' = response?.status?.toUpperCase() === 'UP' ? 'online' : 'offline';
         this.applyBackendStatus(nextStatus);
         this.checkingBackend = false;
       },

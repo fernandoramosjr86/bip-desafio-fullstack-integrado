@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <springProperty scope="context" name="applicationName" source="spring.application.name" defaultValue="beneficios-backend"/>
+    <springProperty scope="context" name="graylogHost" source="graylog.host" defaultValue="localhost"/>
+    <springProperty scope="context" name="graylogPort" source="graylog.port" defaultValue="12201"/>
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <fieldName>@timestamp</fieldName>
+                </timestamp>
+                <pattern>
+                    <pattern>
+                        {
+                        "level":"%level",
+                        "logger":"%logger{36}",
+                        "thread":"%thread",
+                        "message":"%message",
+                        "application":"${applicationName}",
+                        "correlationId":"%mdc{correlationId:-}"
+                        }
+                    </pattern>
+                </pattern>
+                <stackTrace/>
+            </providers>
+        </encoder>
+    </appender>
+
+    <springProfile name="graylog">
+        <appender name="GRAYLOG" class="net.logstash.logback.appender.LogstashUdpSocketAppender">
+            <host>${graylogHost}</host>
+            <port>${graylogPort}</port>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"application":"${applicationName}"}</customFields>
+            </encoder>
+        </appender>
+
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+            <appender-ref ref="GRAYLOG"/>
+        </root>
+    </springProfile>
+
+    <springProfile name="!graylog">
+        <root level="INFO">
+            <appender-ref ref="JSON_CONSOLE"/>
+        </root>
+    </springProfile>
+</configuration>

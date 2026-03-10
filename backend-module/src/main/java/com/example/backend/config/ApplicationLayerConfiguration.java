@@ -5,11 +5,15 @@ import com.example.backend.application.port.in.command.AtualizarBeneficioCommand
 import com.example.backend.application.port.in.command.CriarBeneficioCommand;
 import com.example.backend.application.port.in.command.TransferirBeneficioCommand;
 import com.example.backend.application.port.in.query.ListarBeneficiosQuery;
+import com.example.backend.application.port.in.query.ListarTransferenciasQuery;
 import com.example.backend.application.port.out.BeneficioRepositoryPort;
 import com.example.backend.application.port.out.BeneficioTransferenciaPort;
+import com.example.backend.application.port.out.TransferenciaEventPublisherPort;
+import com.example.backend.application.port.out.TransferenciaHistoricoPort;
 import com.example.backend.application.service.BeneficioApplicationService;
 import com.example.backend.application.shared.PageResult;
 import com.example.backend.domain.model.Beneficio;
+import com.example.backend.domain.model.TransferenciaHistorico;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
@@ -21,9 +25,16 @@ public class ApplicationLayerConfiguration {
     @Bean
     BeneficioApplicationService beneficioApplicationService(
             BeneficioRepositoryPort beneficioRepositoryPort,
-            BeneficioTransferenciaPort beneficioTransferenciaPort
+            BeneficioTransferenciaPort beneficioTransferenciaPort,
+            TransferenciaHistoricoPort transferenciaHistoricoPort,
+            TransferenciaEventPublisherPort transferenciaEventPublisherPort
     ) {
-        return new BeneficioApplicationService(beneficioRepositoryPort, beneficioTransferenciaPort);
+        return new BeneficioApplicationService(
+                beneficioRepositoryPort,
+                beneficioTransferenciaPort,
+                transferenciaHistoricoPort,
+                transferenciaEventPublisherPort
+        );
     }
 
     @Bean
@@ -68,6 +79,12 @@ public class ApplicationLayerConfiguration {
         @Transactional
         public void transferir(TransferirBeneficioCommand command) {
             delegate.transferir(command);
+        }
+
+        @Override
+        @Transactional(readOnly = true)
+        public PageResult<TransferenciaHistorico> listarTransferencias(ListarTransferenciasQuery query) {
+            return delegate.listarTransferencias(query);
         }
 
         @Override

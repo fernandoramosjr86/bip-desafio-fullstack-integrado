@@ -9,6 +9,7 @@ import com.example.backend.BackendApplication;
 import com.example.backend.application.port.in.BeneficioUseCase;
 import com.example.backend.application.port.in.command.CriarBeneficioCommand;
 import com.example.backend.application.port.in.query.ListarBeneficiosQuery;
+import com.example.backend.application.port.in.query.ListarTransferenciasQuery;
 import com.example.backend.application.service.BeneficioApplicationService;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -63,6 +64,8 @@ class ApplicationLayerConfigurationTest {
                 .getMethod("listar", ListarBeneficiosQuery.class);
         Method criarMethod = ApplicationLayerConfiguration.TransactionalBeneficioUseCase.class
                 .getMethod("criar", CriarBeneficioCommand.class);
+        Method listarTransferenciasMethod = ApplicationLayerConfiguration.TransactionalBeneficioUseCase.class
+                .getMethod("listarTransferencias", ListarTransferenciasQuery.class);
 
         TransactionAttribute listarTx = transactionAttributeSource.getTransactionAttribute(
                 listarMethod,
@@ -72,11 +75,17 @@ class ApplicationLayerConfigurationTest {
                 criarMethod,
                 ApplicationLayerConfiguration.TransactionalBeneficioUseCase.class
         );
+        TransactionAttribute listarTransferenciasTx = transactionAttributeSource.getTransactionAttribute(
+                listarTransferenciasMethod,
+                ApplicationLayerConfiguration.TransactionalBeneficioUseCase.class
+        );
 
         assertNotNull(listarTx);
         assertTrue(listarTx.isReadOnly());
         assertNotNull(criarTx);
         assertFalse(criarTx.isReadOnly());
+        assertNotNull(listarTransferenciasTx);
+        assertTrue(listarTransferenciasTx.isReadOnly());
     }
 
     @Test

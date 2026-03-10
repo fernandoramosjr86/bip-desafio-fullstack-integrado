@@ -45,6 +45,7 @@ class BackendApiIntegrationTest {
                         .param("page", "0")
                         .param("size", "1"))
                 .andExpect(status().isOk())
+                .andExpect(header().exists("X-Correlation-Id"))
                 .andExpect(jsonPath("$.items.length()").value(1))
                 .andExpect(jsonPath("$.totalItems", greaterThanOrEqualTo(1)))
                 .andExpect(jsonPath("$.totalPages", greaterThanOrEqualTo(1)))
@@ -121,6 +122,14 @@ class BackendApiIntegrationTest {
 
         assertValorBeneficio(origemId, new BigDecimal("80.00"));
         assertValorBeneficio(destinoId, new BigDecimal("70.00"));
+
+        mockMvc.perform(get("/api/v1/beneficios/transferencias/historico")
+                        .param("page", "0")
+                        .param("size", "10"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()", greaterThanOrEqualTo(1)))
+                .andExpect(jsonPath("$.items[0].beneficioOrigemId").value(origemId))
+                .andExpect(jsonPath("$.items[0].beneficioDestinoId").value(destinoId));
     }
 
     @Test

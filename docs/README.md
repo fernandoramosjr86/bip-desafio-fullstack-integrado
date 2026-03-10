@@ -42,6 +42,7 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 - Testes (15%)
 - Documentação (10%)
 - Frontend (10%)
+- Matriz de aderência à vaga: `docs/ADERENCIA-VAGA.md`
 
 ## 🧱 Arquitetura Hexagonal (base backend)
 - Implementada no módulo `backend-module`
@@ -54,9 +55,19 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 
 ## ▶️ Build e execução (Maven)
 - Build completo dos módulos:
-  - `mvn -B clean package`
+  - `./mvnw -B clean package`
 - Rodar backend junto com dependências do reactor:
-  - `mvn -pl backend-module -am spring-boot:run`
+  - `./mvnw -pl backend-module -am spring-boot:run`
+
+## 🐳 Execução com Docker (opcional)
+- Subir backend + frontend em containers:
+  - `docker compose up --build`
+- Subir backend + frontend + broker JMS opcional:
+  - `APP_TRANSFER_JMS_ENABLED=true docker compose --profile jms up --build`
+  - PowerShell: `$env:APP_TRANSFER_JMS_ENABLED='true'; docker compose --profile jms up --build`
+- Encerrar ambiente:
+  - `docker compose down`
+- O projeto continua suportando execução local sem Docker.
 
 ## 🗄️ Fonte oficial de schema/seed em runtime
 - O backend carrega automaticamente, via `spring.sql.init`, os arquivos:
@@ -77,6 +88,8 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 - `PUT /api/v1/beneficios/{id}`
 - `DELETE /api/v1/beneficios/{id}`
 - `POST /api/v1/beneficios/transferencias`
+- `GET /api/v1/beneficios/transferencias/historico?page=0&size=10`
+- `GET /actuator/health`
 
 ## ✅ Testes implementados
 - `backend-module`:
@@ -105,4 +118,30 @@ Criar solução completa em camadas (DB, EJB, Backend, Frontend), corrigindo bug
 - JaCoCo é executado no `verify` dos módulos `backend-module` e `ejb-module`.
 - O workflow `.github/workflows/ci.yml` publica os relatórios como artifact (`coverage-artifacts`).
 - Os badges em `.github/badges/` são atualizados automaticamente a cada `push` em `main/master`.
-- O quality gate de cobertura bloqueia o job quando ficar abaixo dos mínimos (`MIN_LINE_COVERAGE=80` e `MIN_BRANCH_COVERAGE=70`).
+- O quality gate de cobertura bloqueia o job quando ficar abaixo dos mínimos backend+EJB (`MIN_LINE_COVERAGE=80` e `MIN_BRANCH_COVERAGE=70`) e frontend (`MIN_FRONTEND_LINE_COVERAGE=70` e `MIN_FRONTEND_BRANCH_COVERAGE=60`).
+- O pipeline também builda imagens Docker, roda scan Trivy (SARIF) e publica SBOM CycloneDX.
+
+## 🏢 Aderência enterprise adicional
+- JMS: publicação de evento de transferência para fila configurável (`app.transfer.jms.*`), com fallback para log quando desligado.
+- Observabilidade: `X-Correlation-Id` em todas as respostas para rastreabilidade ponta a ponta.
+- Logging: JSON estruturado com profile opcional para envio ao Graylog (`SPRING_PROFILES_ACTIVE=graylog`).
+- Deploy corporativo: profile Maven `websphere` para empacotar WAR (`./mvnw -pl backend-module -Pwebsphere clean package`).
+
+## 🔍 Como verificar rastreabilidade de transferências
+1. API de histórico:
+   - `GET /api/v1/beneficios/transferencias/historico?page=0&size=10`
+2. Swagger:
+   - `http://localhost:8080/swagger-ui/index.html`
+3. Banco (H2):
+   - `http://localhost:8080/h2-console`
+   - JDBC: `jdbc:h2:mem:beneficiosdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE`
+   - Usuário: `sa`
+   - Senha: em branco
+   - Query:
+```sql
+SELECT ID, BENEFICIO_ORIGEM_ID, BENEFICIO_DESTINO_ID, VALOR, EXECUTADO_EM
+FROM TRANSFERENCIA_HISTORICO
+ORDER BY EXECUTADO_EM DESC;
+```
+4. Logs e correlação:
+   - header `X-Correlation-Id` para rastrear requisição nos logs estruturados JSON.
