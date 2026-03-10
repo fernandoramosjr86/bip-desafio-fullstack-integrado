@@ -403,25 +403,38 @@ jobs:
           docker build -f backend-module/Dockerfile -t beneficios-backend:ci .
           docker build -f frontend/Dockerfile -t beneficios-frontend:ci .
 
-      - name: Scan backend image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: beneficios-backend:ci
-          format: sarif
-          output: trivy-backend.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '0'
+      - name: Pull Trivy image
+        run: docker pull aquasec/trivy:0.56.1
 
-      - name: Scan frontend image with Trivy
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: beneficios-frontend:ci
-          format: sarif
-          output: trivy-frontend.sarif
-          severity: CRITICAL,HIGH
-          ignore-unfixed: true
-          exit-code: '0'
+      - name: Scan backend image with Trivy (SARIF)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.56.1 image \
+            --quiet \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-backend.sarif \
+            beneficios-backend:ci
+
+      - name: Scan frontend image with Trivy (SARIF)
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.56.1 image \
+            --quiet \
+            --scanners vuln \
+            --severity CRITICAL,HIGH \
+            --ignore-unfixed \
+            --format sarif \
+            --output trivy-frontend.sarif \
+            beneficios-frontend:ci
 
       - name: Upload backend Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
@@ -436,20 +449,30 @@ jobs:
           category: trivy-frontend
 
       - name: Generate backend SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: beneficios-backend:ci
-          format: cyclonedx
-          output: sbom-backend.cdx.json
-          exit-code: '0'
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.56.1 image \
+            --quiet \
+            --scanners vuln \
+            --format cyclonedx \
+            --output sbom-backend.cdx.json \
+            beneficios-backend:ci
 
       - name: Generate frontend SBOM (CycloneDX)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: beneficios-frontend:ci
-          format: cyclonedx
-          output: sbom-frontend.cdx.json
-          exit-code: '0'
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -v "${{ github.workspace }}:/work" \
+            -w /work \
+            aquasec/trivy:0.56.1 image \
+            --quiet \
+            --scanners vuln \
+            --format cyclonedx \
+            --output sbom-frontend.cdx.json \
+            beneficios-frontend:ci
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
