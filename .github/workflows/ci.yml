@@ -49,6 +49,7 @@ jobs:
           python - <<'PY'
           import json
           import os
+          import re
           from pathlib import Path
 
           min_line = float(os.environ.get('MIN_FRONTEND_LINE_COVERAGE', '0'))
@@ -57,15 +58,18 @@ jobs:
           search_roots = [Path('frontend/coverage'), Path('coverage'), Path('frontend')]
           summary_candidates = []
           lcov_candidates = []
+          html_candidates = []
 
           for root in search_roots:
               if not root.exists():
                   continue
               summary_candidates.extend(root.rglob('coverage-summary.json'))
               lcov_candidates.extend(root.rglob('lcov.info'))
+              html_candidates.extend(root.rglob('index.html'))
 
           summary_candidates = sorted(set(summary_candidates))
           lcov_candidates = sorted(set(lcov_candidates))
+          html_candidates = sorted(set(html_candidates))
 
           report = None
           line_pct = 0.0
@@ -109,6 +113,46 @@ jobs:
 
               line_pct = 0.0 if line_total == 0 else (line_covered * 100.0 / line_total)
               branch_pct = 0.0 if branch_total == 0 else (branch_covered * 100.0 / branch_total)
+          elif html_candidates:
+              html_report = None
+              for candidate in html_candidates:
+                  text = candidate.read_text(encoding='utf-8', errors='ignore')
+                  if 'Code coverage report for All files' in text:
+                      html_report = candidate
+                      break
+
+              if html_report is not None:
+                  report = html_report
+                  html = html_report.read_text(encoding='utf-8', errors='ignore')
+                  metric_pattern = re.compile(
+                      r'<span class="strong">\s*([0-9.]+)%\s*</span>\s*'
+                      r'<span class="quiet">(Statements|Branches|Functions|Lines)</span>\s*'
+                      r'<span class=[\'"]fraction[\'"]>([0-9]+)/([0-9]+)</span>',
+                      re.IGNORECASE
+                  )
+
+                  parsed = {}
+                  for match in metric_pattern.finditer(html):
+                      pct, metric, covered, total = match.groups()
+                      parsed[metric.lower()] = (
+                          float(pct),
+                          int(covered),
+                          int(total),
+                      )
+
+                  if 'lines' in parsed:
+                      line_pct, line_covered, line_total = parsed['lines']
+                  if 'branches' in parsed:
+                      branch_pct, branch_covered, branch_total = parsed['branches']
+
+                  if line_total == 0 and branch_total == 0:
+                      raise SystemExit(
+                          f'Frontend HTML coverage report found but metrics could not be parsed: {html_report}'
+                      )
+              else:
+                  raise SystemExit(
+                      'Frontend coverage HTML files were found, but none matched the expected summary structure'
+                  )
           else:
               discovered = []
               for root in [Path('frontend'), Path('.')]:
@@ -116,6 +160,7 @@ jobs:
                       continue
                   discovered.extend(root.rglob('coverage-summary.json'))
                   discovered.extend(root.rglob('lcov.info'))
+                  discovered.extend(root.rglob('index.html'))
 
               print('Coverage files discovered in workspace:')
               if discovered:
@@ -124,7 +169,7 @@ jobs:
               else:
                   print(' - none')
               raise SystemExit(
-                  'Frontend coverage report not found in expected paths: frontend/coverage/**, coverage/**, frontend/**'
+                  'Frontend coverage report not found in expected paths: frontend/coverage/**, coverage/**, frontend/** (summary, lcov or html index)'
               )
 
           print(
