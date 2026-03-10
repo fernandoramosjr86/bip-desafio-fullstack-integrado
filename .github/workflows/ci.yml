@@ -42,7 +42,7 @@ jobs:
         working-directory: frontend
         env:
           CHROME_BIN: /usr/bin/google-chrome
-        run: npm test -- --code-coverage
+        run: npm run test:ci
 
       - name: Enforce frontend coverage thresholds
         run: |
@@ -54,8 +54,18 @@ jobs:
           min_line = float(os.environ.get('MIN_FRONTEND_LINE_COVERAGE', '0'))
           min_branch = float(os.environ.get('MIN_FRONTEND_BRANCH_COVERAGE', '0'))
 
-          summary_candidates = sorted(Path('frontend/coverage').rglob('coverage-summary.json'))
-          lcov_candidates = sorted(Path('frontend/coverage').rglob('lcov.info'))
+          search_roots = [Path('frontend/coverage'), Path('coverage'), Path('frontend')]
+          summary_candidates = []
+          lcov_candidates = []
+
+          for root in search_roots:
+              if not root.exists():
+                  continue
+              summary_candidates.extend(root.rglob('coverage-summary.json'))
+              lcov_candidates.extend(root.rglob('lcov.info'))
+
+          summary_candidates = sorted(set(summary_candidates))
+          lcov_candidates = sorted(set(lcov_candidates))
 
           report = None
           line_pct = 0.0
@@ -100,8 +110,21 @@ jobs:
               line_pct = 0.0 if line_total == 0 else (line_covered * 100.0 / line_total)
               branch_pct = 0.0 if branch_total == 0 else (branch_covered * 100.0 / branch_total)
           else:
+              discovered = []
+              for root in [Path('frontend'), Path('.')]:
+                  if not root.exists():
+                      continue
+                  discovered.extend(root.rglob('coverage-summary.json'))
+                  discovered.extend(root.rglob('lcov.info'))
+
+              print('Coverage files discovered in workspace:')
+              if discovered:
+                  for file in sorted(set(discovered)):
+                      print(f' - {file}')
+              else:
+                  print(' - none')
               raise SystemExit(
-                  'Frontend coverage report not found in frontend/coverage/**/(coverage-summary.json|lcov.info)'
+                  'Frontend coverage report not found in expected paths: frontend/coverage/**, coverage/**, frontend/**'
               )
 
           print(
@@ -396,6 +419,7 @@ jobs:
             sbom-backend.cdx.json
             sbom-frontend.cdx.json
             frontend/coverage/**
+            coverage/**
             backend-module/target/site/jacoco/**
             ejb-module/target/site/jacoco/**
           if-no-files-found: warn
